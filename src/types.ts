@@ -115,6 +115,8 @@ export interface SystemSettings {
   adminSecretPassword: string; // RAINAKSH
   stripeEnabled: boolean;
   allowDirectRegistration: boolean;
+  customLogoUrl?: string;
+  selectedLogoId?: string;
 }
 
 export interface NotificationItem {

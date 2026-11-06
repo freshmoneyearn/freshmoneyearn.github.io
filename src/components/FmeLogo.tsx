@@ -34,11 +34,29 @@ export const FME_LOGO_OPTIONS = [
 // Helper to get active logo image
 export function getActiveLogoImage(): string {
   if (typeof window !== 'undefined') {
+    // 1. Check if admin uploaded a custom logo from phone/device
+    const custom = localStorage.getItem('fme_custom_uploaded_logo');
+    if (custom) return custom;
+
+    // 2. Check if admin selected one of the official options
     const saved = localStorage.getItem('fme_selected_logo_id');
     const found = FME_LOGO_OPTIONS.find((opt) => opt.id === saved);
     if (found) return found.image;
   }
   return fmeLogoOption1; // Default to Option 1
+}
+
+// Function called by Admin to update logo across entire platform
+export function setAdminActiveLogo(logoId: string, customDataUrl?: string) {
+  if (typeof window === 'undefined') return;
+  if (customDataUrl) {
+    localStorage.setItem('fme_custom_uploaded_logo', customDataUrl);
+    localStorage.setItem('fme_selected_logo_id', 'custom');
+  } else {
+    localStorage.removeItem('fme_custom_uploaded_logo');
+    localStorage.setItem('fme_selected_logo_id', logoId);
+  }
+  window.dispatchEvent(new Event('fme_logo_changed'));
 }
 
 // Active default logo

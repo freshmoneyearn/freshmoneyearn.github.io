@@ -35,7 +35,6 @@ interface NavbarProps {
   onOpenPublicCard: (cardId?: string) => void;
   currentView: 'home' | 'dashboard' | 'admin';
   onNavigateHome: () => void;
-  onOpenLogoSelector?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -49,7 +48,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenPublicCard,
   currentView,
   onNavigateHome,
-  onOpenLogoSelector,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickSearchId, setQuickSearchId] = useState('');
@@ -167,16 +165,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <BookOpen className="w-3.5 h-3.5" />
               <span>गाइड</span>
             </button>
-            {onOpenLogoSelector && (
-              <button
-                type="button"
-                onClick={onOpenLogoSelector}
-                className="px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 hover:bg-yellow-300 font-black transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>🎨 लोगो चुनें</span>
-              </button>
-            )}
           </nav>
 
           {/* Right Action Buttons */}
@@ -352,20 +340,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="pt-2 border-t border-blue-500/50 flex flex-col gap-2">
-            {onOpenLogoSelector && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenLogoSelector();
-                }}
-                className="w-full py-2.5 px-3 rounded-sm text-xs font-black bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 shadow-xs mb-2.5 cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>🎨 लोगो चुनें (FME Logo Studio)</span>
-              </button>
-            )}
-
             {currentUser ? (
               <>
                 <button

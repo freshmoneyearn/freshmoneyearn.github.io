@@ -41,7 +41,6 @@ import {
 import { validateFirestoreConnection } from './firebase';
 import { ToastProvider } from './components/Toast';
 import { FmeLogo } from './components/FmeLogo';
-import { LogoSelectorModal } from './components/LogoSelectorModal';
 
 export default function App() {
   const [isDark, setIsDark] = useState<boolean>(() => {
@@ -81,7 +80,6 @@ export default function App() {
 
   // Info Modals (About, Privacy, Declaration, User Guide, Govt Rules, Disclaimer)
   const [activeInfoModal, setActiveInfoModal] = useState<InfoModalType | null>(null);
-  const [logoModalOpen, setLogoModalOpen] = useState(false);
 
 
   // Initialize and check Firestore connection
@@ -234,7 +232,6 @@ export default function App() {
           }}
           currentView={currentView}
           onNavigateHome={() => setCurrentView('home')}
-          onOpenLogoSelector={() => setLogoModalOpen(true)}
         />
 
         {/* Main Content Area */}
@@ -386,12 +383,6 @@ export default function App() {
         <DisclaimerModal
           isOpen={activeInfoModal === 'disclaimer'}
           onClose={() => setActiveInfoModal(null)}
-        />
-
-        {/* FME Official Brand Logo Selector Studio */}
-        <LogoSelectorModal
-          isOpen={logoModalOpen}
-          onClose={() => setLogoModalOpen(false)}
         />
       </div>
     </ToastProvider>

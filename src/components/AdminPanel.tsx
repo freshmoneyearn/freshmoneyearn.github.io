@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldCheck,
   Users,
@@ -35,6 +35,9 @@ import {
   Award,
   Crown,
   Copy,
+  Upload,
+  Image as ImageIcon,
+  Camera,
 } from 'lucide-react';
 import { UserProfile, WithdrawalRequest, SystemSettings, PlanType, NotificationItem, ChatMessage } from '../types';
 import { PLANS, OFFICIAL_UPI_ID, OFFICIAL_UPI_NAME, ADMIN_SECRET_CODE } from '../data/plans';
@@ -58,7 +61,8 @@ import {
   sendChatMessage,
 } from '../services/fmeService';
 import { useToast } from './Toast';
-import { FmeLogo } from './FmeLogo';
+import { FmeLogo, FME_LOGO_OPTIONS, getActiveLogoImage, setAdminActiveLogo } from './FmeLogo';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface AdminPanelProps {
   onBackToApp: () => void;
@@ -74,13 +78,77 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToApp, currentUser
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Main Tabs
-  const [activeTab, setActiveTab] = useState<'users' | 'control' | 'broadcast' | 'chat' | 'withdrawals' | 'whatsapp_page'>('users');
+  // Main Tabs (Includes Brand Logo Manager)
+  const [activeTab, setActiveTab] = useState<
+    'users' | 'control' | 'broadcast' | 'chat' | 'withdrawals' | 'whatsapp_page' | 'logo_manager'
+  >('users');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+
+  // Brand Logo Studio State
+  const [activeLogoSrc, setActiveLogoSrc] = useState<string>(() => getActiveLogoImage());
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(() => {
+    return localStorage.getItem('fme_selected_logo_id') || 'option1';
+  });
+  const [customLogoFileUrl, setCustomLogoFileUrl] = useState<string>(() => {
+    return localStorage.getItem('fme_custom_uploaded_logo') || '';
+  });
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoFileName, setLogoFileName] = useState('');
+  const [logoFileSizeKb, setLogoFileSizeKb] = useState(0);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadLogoFromPhone = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogoUploading(true);
+    try {
+      const result = await compressImageFile(file, 800, 0.85);
+      setCustomLogoFileUrl(result.dataUrl);
+      setLogoFileName(result.fileName);
+      setLogoFileSizeKb(result.compressedSizeKb);
+      setActiveLogoSrc(result.dataUrl);
+      setAdminActiveLogo('custom', result.dataUrl);
+      updateSystemSettings({ customLogoUrl: result.dataUrl, selectedLogoId: 'custom' });
+      showToast(
+        'लोगो अपलोड व सक्रिय हुआ! ✓',
+        'आपका कस्टम लोगो पूरे प्लेटफ़ॉर्म (हेडर, ID कार्ड, पोस्टर्स) पर तुरंत लागू हो गया है।',
+        'success'
+      );
+    } catch (err: any) {
+      showToast('अपलोड विफल', err?.message || 'लोगो इमेज प्रोसेस नहीं हो सकी।', 'error');
+    } finally {
+      setLogoUploading(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleSelectPresetLogo = (presetId: string, name: string) => {
+    setSelectedPresetId(presetId);
+    setCustomLogoFileUrl('');
+    setAdminActiveLogo(presetId);
+    setActiveLogoSrc(getActiveLogoImage());
+    updateSystemSettings({ customLogoUrl: '', selectedLogoId: presetId });
+    showToast(
+      'लोगो सफलतापूर्वक सेट हुआ! ✓',
+      `अब पूरे सिस्टम में "${name}" सक्रिय है।`,
+      'success'
+    );
+  };
+
+  const handleRemoveCustomLogo = () => {
+    setCustomLogoFileUrl('');
+    setLogoFileName('');
+    setLogoFileSizeKb(0);
+    setAdminActiveLogo('option1');
+    setActiveLogoSrc(getActiveLogoImage());
+    updateSystemSettings({ customLogoUrl: '', selectedLogoId: 'option1' });
+    showToast('कस्टम लोगो हटाया गया', 'सिस्टम अब डिफ़ॉल्ट 3D FME लोगो पर रीसेट हो गया है।', 'info');
+  };
 
   // WhatsApp Page Builder State
   const [waPageTitle, setWaPageTitle] = useState('FRESH MONEY EARN (FME) - ऑफिशियल व्हाट्सएप कम्युनिटी');
@@ -481,6 +549,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToApp, currentUser
         >
           <MessageCircle className="w-4 h-4 text-emerald-500" />
           <span>व्हाट्सएप पेज क्रिएटर</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('logo_manager')}
+          className={`py-2.5 px-4 rounded-2xl text-xs font-black flex items-center gap-2 cursor-pointer transition-all shrink-0 ${
+            activeTab === 'logo_manager'
+              ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-md ring-2 ring-yellow-400'
+              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span>🎨 ब्रांड लोगो स्टूडियो & फोन अपलोड</span>
         </button>
       </div>
 
@@ -1428,6 +1509,291 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onBackToApp, currentUser
 
                   <div className="text-[9px] text-slate-500 text-center pt-2">
                     100% भारत सरकार डायरेक्ट सेलिंग नियम अनुकूल · त्वरित पेआउट्स
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 7️⃣ BRAND LOGO STUDIO & PHONE UPLOAD TAB */}
+      {/* ======================================================== */}
+      {activeTab === 'logo_manager' && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-blue-500/10 dark:from-amber-950/30 dark:via-slate-900 dark:to-blue-950/30 border-2 border-amber-400 dark:border-amber-600/50 shadow-md">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                    एडमिन विशेष · मास्टर ब्रांडिंग
+                  </span>
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                    आधिकारिक ब्रांड लोगो स्टूडियो (Phone Upload & Logo Switcher)
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    अपने फोन या कंप्यूटर से नया लोगो अपलोड करें या नीचे दिए गए 3D आधिकारिक लोगो में से चुनें।
+                  </p>
+                </div>
+              </div>
+
+              {/* Current Active Logo Mini Badge */}
+              <div className="p-2.5 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/60 flex items-center gap-3 shadow-xs">
+                <div className="w-10 h-10 rounded-xl overflow-hidden border border-amber-400 shrink-0 bg-slate-950">
+                  <img src={activeLogoSrc} alt="Active Logo" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase font-bold text-slate-400">वर्तमान सक्रिय लोगो:</div>
+                  <div className="text-xs font-black text-[#2874f0] dark:text-blue-400">
+                    {customLogoFileUrl ? 'कस्टम फोन अपलोड लोगो' : selectedPresetId.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left 7 Columns: Upload From Phone & Preset Variations */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* 1. Phone / Device Gallery Upload Card */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-amber-500" />
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                      1. फोन / गैलरी से अपना लोगो अपलोड करें
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                    JPG, PNG, WEBP
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  यदि आपके पास अपना बनाया हुआ लोगो है, तो अपने फोन या कंप्यूटर से सीधे फोटो चुनें। सिस्टम इसे ऑटोमैटिक कंप्रेस करके पूरे ऐप पर लाइव लागू कर देगा।
+                </p>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadLogoFromPhone}
+                  className="hidden"
+                />
+
+                {/* Upload Action Box */}
+                <div
+                  onClick={() => logoInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all ${
+                    logoUploading
+                      ? 'border-amber-400 bg-amber-50/50 dark:bg-amber-950/20'
+                      : 'border-slate-300 dark:border-slate-700 hover:border-amber-400 hover:bg-amber-50/20'
+                  }`}
+                >
+                  {logoUploading ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-3">
+                      <div className="w-7 h-7 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-bold text-amber-600">
+                        लोगो इमेज प्रोसेस व कंप्रेस हो रही है...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 py-2 text-slate-600 dark:text-slate-400">
+                      <div className="p-3.5 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-300">
+                        <Upload className="w-7 h-7" />
+                      </div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white">
+                        फोन से लोगो फोटो चुनने के लिए यहाँ टैप करें
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        कैमरा से फोटो लें या गैलरी से अपलोड करें
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* If custom logo is currently uploaded */}
+                {customLogoFileUrl && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-emerald-500 shrink-0 bg-slate-950">
+                        <img src={customLogoFileUrl} alt="Custom Logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>कस्टम फोन लोगो सक्रिय है!</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate max-w-[200px]">
+                          {logoFileName || 'custom_brand_logo.jpg'} ({logoFileSizeKb} KB)
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveCustomLogo}
+                      className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>हटाएं</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Choose from Official 3D Variations */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    2. आधिकारिक 3D FME लोगो में से चुनें (Official Preset Designs)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500">
+                  FME के लिए विशेष रूप से डिज़ाइन किए गए 3D लक्ज़री लोगो। जिसे भी सक्रिय करना हो उसके नीचे बटन दबाएं:
+                </p>
+
+                <div className="space-y-3.5">
+                  {FME_LOGO_OPTIONS.map((logo) => {
+                    const isSelected = !customLogoFileUrl && selectedPresetId === logo.id;
+
+                    return (
+                      <div
+                        key={logo.id}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                          isSelected
+                            ? 'border-amber-400 bg-amber-50/40 dark:bg-amber-950/20 shadow-md ring-2 ring-yellow-400/40'
+                            : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-950 border border-amber-400/50 shadow-md shrink-0">
+                            <img src={logo.image} alt={logo.name} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#ffe11b] text-slate-950">
+                                {logo.tag}
+                              </span>
+                              {isSelected && (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-white">
+                                  ✓ सक्रिय
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                              {logo.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 leading-snug">
+                              {logo.desc}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSelectPresetLogo(logo.id, logo.name)}
+                          className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black shrink-0 transition-transform active:scale-95 cursor-pointer shadow-xs ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-[#2874f0] hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          {isSelected ? '✓ यह एक्टिव है' : 'यह लोगो सेट करें'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right 5 Columns: Live Device & Digital ID Card Previews */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                <Eye className="w-4 h-4 text-amber-500" />
+                <span>लाइव सिस्टम प्रीव्यू (Live Real-Time Appearance)</span>
+              </div>
+
+              {/* 1. Header Preview */}
+              <div className="p-4 rounded-3xl bg-[#2874f0] text-white shadow-lg space-y-2">
+                <div className="text-[10px] uppercase font-bold text-blue-200">
+                  वेबसाइट हेडर लुक (Flipkart Blue Navbar)
+                </div>
+                <div className="p-2.5 rounded-2xl bg-white/10 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md ring-2 ring-yellow-400 shrink-0 bg-slate-950">
+                    <img src={activeLogoSrc} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <div className="font-black text-sm italic tracking-tight">FRESH MONEY EARN</div>
+                    <div className="text-[10px] text-yellow-300 font-bold">Explore Plus | 3-Level Service</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Digital ID Card Live Mock */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-950 via-yellow-900 to-slate-950 text-white shadow-xl border border-amber-400/60 relative overflow-hidden space-y-3">
+                {/* Watermark in background */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-15 pointer-events-none">
+                  <img src={activeLogoSrc} alt="" className="w-48 h-48 object-contain" />
+                </div>
+
+                <div className="relative z-10 flex items-center justify-between pb-3 border-b border-white/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-amber-400 shrink-0 bg-slate-950">
+                      <img src={activeLogoSrc} alt="ID Logo" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-amber-300">FRESH MONEY EARN</div>
+                      <div className="text-[9px] text-white/80">डिजिटल पहचान पत्र (ID CARD)</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded bg-amber-400 text-slate-950">
+                    👑 VIP CROWN
+                  </span>
+                </div>
+
+                <div className="relative z-10 flex items-center gap-3 py-1">
+                  <div className="w-14 h-14 rounded-xl bg-slate-800 ring-2 ring-amber-400 overflow-hidden shrink-0">
+                    <img
+                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80"
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-black text-white text-sm">विकास कुमार (Vikas Kumar)</div>
+                    <div className="font-mono text-amber-300 font-bold">FME1000VK01</div>
+                    <div className="text-[10px] text-emerald-400">✓ एक्टिव डिजिटल मेम्बर</div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 text-[10px] text-white/70 pt-2 border-t border-white/10 flex items-center justify-between">
+                  <span>सुरक्षा सील & वाटरमार्क सक्रिय</span>
+                  <div className="w-6 h-6 rounded-full overflow-hidden opacity-80 border border-amber-300 shrink-0">
+                    <img src={activeLogoSrc} alt="Seal" className="w-full h-full object-cover" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Promotional Poster Banner Preview */}
+              <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-900 text-white shadow-md relative overflow-hidden space-y-2 border border-emerald-400/50">
+                <div className="text-[10px] uppercase font-bold text-emerald-200">
+                  टेलीग्राम प्रमोशन पोस्टर लुक
+                </div>
+                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/40">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 ring-1 ring-amber-300 bg-slate-950">
+                    <img src={activeLogoSrc} alt="Poster Logo" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-black text-amber-300">FRESH MONEY EARN</div>
+                    <div className="text-[10px] text-white/90">₹100, ₹500, ₹1000 डायरेक्ट इनकम</div>
                   </div>
                 </div>
               </div>

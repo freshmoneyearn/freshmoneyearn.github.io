@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered member profile with 3-level referral network and wallet details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID or unique key" },
+        "userId": { "type": "string", "description": "Unique FME ID like FME1001" },
+        "username": { "type": "string", "description": "Unique username" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "format": "email", "description": "Email address" },
+        "whatsapp": { "type": "string", "description": "WhatsApp contact number" },
+        "telegram": { "type": "string", "description": "Telegram username or handle" },
+        "upiId": { "type": "string", "description": "UPI ID for payouts (e.g. mobile@upi)" },
+        "upiName": { "type": "string", "description": "UPI bank registered holder name" },
+        "sponsorId": { "type": "string", "description": "Referral ID of sponsor who invited this user" },
+        "sponsorName": { "type": "string", "description": "Name of the sponsor" },
+        "plan": { "type": "string", "enum": ["100", "500", "1000"], "description": "Selected service plan" },
+        "planStatus": { "type": "string", "enum": ["pending", "active", "rejected"], "description": "Activation status" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" },
+        "profilePic": { "type": "string", "description": "Profile picture avatar URL or identifier" },
+        "walletBalance": { "type": "number", "description": "Available withdrawable balance in rupees" },
+        "totalEarned": { "type": "number", "description": "Lifetime total earnings in rupees" },
+        "totalWithdrawn": { "type": "number", "description": "Total amount withdrawn in rupees" },
+        "level1Count": { "type": "number", "description": "Direct referral team count" },
+        "level2Count": { "type": "number", "description": "Level 2 team count" },
+        "level3Count": { "type": "number", "description": "Level 3 team count" },
+        "level1Income": { "type": "number", "description": "Income earned from Level 1" },
+        "level2Income": { "type": "number", "description": "Income earned from Level 2" },
+        "level3Income": { "type": "number", "description": "Income earned from Level 3" },
+        "createdAt": { "type": "string", "description": "Registration date ISO string" },
+        "paymentProof": { "type": "string", "description": "Base64 data URL or image of transaction payment proof screenshot for admin verification" },
+        "paymentProofUploadedAt": { "type": "string", "description": "Timestamp when payment screenshot proof was uploaded" }
+      },
+      "required": ["userId", "username", "name", "email", "whatsapp", "upiId", "upiName", "plan"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial ledger entry for earnings, commissions, and activation payments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique transaction ID" },
+        "userId": { "type": "string", "description": "Target recipient user ID" },
+        "amount": { "type": "number", "description": "Amount in rupees" },
+        "type": { "type": "string", "enum": ["commission_l1", "commission_l2", "commission_l3", "activation_fee", "withdrawal"], "description": "Transaction type" },
+        "description": { "type": "string", "description": "Detailed description of credit or debit" },
+        "fromUserId": { "type": "string", "description": "Source user ID who generated the commission" },
+        "fromUserName": { "type": "string", "description": "Source user name" },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"], "description": "Status" },
+        "createdAt": { "type": "string", "description": "Transaction timestamp" }
+      },
+      "required": ["userId", "amount", "type", "createdAt"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "Withdrawal payout requests by users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique withdrawal request ID" },
+        "userId": { "type": "string", "description": "User ID requesting withdrawal" },
+        "userName": { "type": "string", "description": "User's full name" },
+        "amount": { "type": "number", "description": "Amount in rupees" },
+        "upiId": { "type": "string", "description": "Target UPI ID" },
+        "upiName": { "type": "string", "description": "UPI holder name" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Request status" },
+        "txnRef": { "type": "string", "description": "Bank/UPI reference number when processed" },
+        "adminNote": { "type": "string", "description": "Optional admin note" },
+        "createdAt": { "type": "string", "description": "Request timestamp" }
+      },
+      "required": ["userId", "amount", "upiId", "status", "createdAt"]
+    },
+    "SystemSetting": {
+      "title": "SystemSetting",
+      "description": "Platform configurations, admin UPI, and announcements",
+      "type": "object",
+      "properties": {
+        "adminUpiId": { "type": "string", "description": "Admin UPI ID for receiving joining charges" },
+        "adminUpiName": { "type": "string", "description": "Admin UPI holder name" },
+        "adminWhatsApp": { "type": "string", "description": "Admin WhatsApp support number" },
+        "adminEmail": { "type": "string", "description": "Admin official email" },
+        "notice": { "type": "string", "description": "Platform announcement notice" },
+        "minWithdrawal": { "type": "number", "description": "Minimum withdrawal threshold" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles indexed by unique userId or auth uid"
+    },
+    "/transactions/{txnId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Ledger of commissions, activations, and earnings"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/Withdrawal" },
+      "description": "Withdrawal payout requests submitted by users"
+    },
+    "/system_settings/config": {
+      "schema": { "$ref": "#/entities/SystemSetting" },
+      "description": "Global settings and admin configurations"
+    }
+  }
+}

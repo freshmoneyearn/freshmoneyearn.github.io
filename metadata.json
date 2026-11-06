@@ -1,0 +1,6 @@
+{
+  "name": "FRESH MONEY EARN (FME) - Fast Income Service",
+  "description": "FRESH MONEY EARN (FME) लाया है पैसा कमाने का बिल्कुल नया और अनोखा तरीका। ₹100, ₹500 या ₹1000 से सर्विस शुरू करें और 3 LEVEL तक कमाई करें।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
